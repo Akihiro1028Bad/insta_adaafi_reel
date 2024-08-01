@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram動画アップローダー</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        form { margin-bottom: 20px; }
+        label { display: block; margin-top: 10px; }
+        input[type="text"], input[type="password"], input[type="time"], select, textarea { width: 100%; padding: 5px; }
+        button { margin-top: 10px; }
+        .account-checkbox { display: inline-block; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Instagram動画アップローダー</h1>
+    
+    <!-- 動画アップロードフォーム -->
+    <form id="uploadForm">
+        <label>アカウント選択:</label>
+        <div id="accountCheckboxes">
+            {% for account in accounts %}
+                <label class="account-checkbox">
+                    <input type="checkbox" name="account" value="{{ account }}"> {{ account }}
+                </label>
+            {% endfor %}
+        </div>
+        
+        <label for="caption">キャプション:</label>
+        <textarea id="caption" name="caption" rows="4" required></textarea>
+        
+        <label for="preset">定型文:</label>
+        <select id="preset" onchange="document.getElementById('caption').value = this.value">
+            <option value="">選択してください</option>
+            {% for preset in presets %}
+                <option value="{{ preset }}">{{ preset[:20] }}...</option>
+            {% endfor %}
+        </select>
+        
+        <button type="submit">選択したアカウントに動画をアップロード</button>
+    </form>
+
+    <!-- 現在のスケジュール表示 -->
+    <h2>現在のスケジュール設定</h2>
+    {% if schedule %}
+        <p>アカウント: {{ ', '.join(schedule.accounts) }}</p>
+        <p>キャプション: {{ schedule.caption }}</p>
+        <p>開始時刻: {{ schedule.start_time }}</p>
+        <p>終了時刻: {{ schedule.end_time }}</p>
+    {% else %}
+        <p>スケジュールが設定されていません。</p>
+    {% endif %}
+
+    <!-- 自動投稿スケジュール設定フォーム -->
+    <h2>自動投稿スケジュール設定</h2>
+    <form id="scheduleForm">
+        <label>アカウント選択:</label>
+        <div id="scheduleAccountCheckboxes">
+            {% for account in accounts %}
+                <label class="account-checkbox">
+                    <input type="checkbox" name="account" value="{{ account }}"> {{ account }}
+                </label>
+            {% endfor %}
+        </div>
+        
+        <label for="scheduleCaption">キャプション:</label>
+        <textarea id="scheduleCaption" name="caption" rows="4" required>{{ schedule.caption if schedule else '' }}</textarea>
+        
+        <label for="startTime">開始時刻:</label>
+        <input type="time" id="startTime" name="start_time" required value="{{ schedule.start_time if schedule else '' }}">
+        
+        <label for="endTime">終了時刻:</label>
+        <input type="time" id="endTime" name="end_time" required value="{{ schedule.end_time if schedule else '' }}">
+        
+        <button type="submit">スケジュールを設定</button>
+    </form>
+
+    <!-- 新規アカウント追加フォーム -->
+    <h2>新規アカウント追加</h2>
+    <form id="addAccountForm">
+        <label for="newUsername">ユーザー名:</label>
+        <input type="text" id="newUsername" name="username" required>
+        
+        <label for="newPassword">パスワード:</label>
+        <input type="password" id="newPassword" name="password" required>
+        
+        <button type="submit">アカウントを追加</button>
+    </form>
+
+    <!-- 新規定型文追加フォーム -->
+    <h2>新規定型文追加</h2>
+    <form id="addPresetForm">
+        <label for="newPreset">定型文:</label>
+        <textarea id="newPreset" name="preset" rows="4" required></textarea>
+        
+        <button type="submit">定型文を追加</button>
+    </form>
+
+    <!-- 結果表示エリア -->
+    <div id="result"></div>
+
+    <script>
+        // フォームの送信をハンドリングする関数
+        function handleSubmit(event, url) {
+            event.preventDefault();
+            fetchData(url, new FormData(event.target));
+        }
+
+        // アップロードフォームのイベントリスナー
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            handleSubmit(e, '/upload');
+        });
+
+        // スケジュールフォームのイベントリスナー
+        document.getElementById('scheduleForm').addEventListener('submit', function(e) {
+            handleSubmit(e, '/set_schedule');
+        });
+
+        // アカウント追加フォームのイベントリスナー
+        document.getElementById('addAccountForm').addEventListener('submit', function(e) {
+            handleSubmit(e, '/add_account');
+        });
+
+        // 定型文追加フォームのイベントリスナー
+        document.getElementById('addPresetForm').addEventListener('submit', function(e) {
+            handleSubmit(e, '/add_preset');
+        });
+
+        // データをサーバーに送信し、結果を処理する関数
+        function fetchData(url, formData) {
+            fetch(url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('result').innerHTML = 'エラー: ' + data.error;
+                } else {
+                    document.getElementById('result').innerHTML = '成功: ' + data.message;
+                    if (url !== '/upload' && url !== '/set_schedule') {
+                        location.reload();  // ページをリロードして新しいアカウントや定型文を表示
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = 'エラーが発生しました。もう一度お試しください。';
+            });
+        }
+    </script>
+</body>
+</html>
