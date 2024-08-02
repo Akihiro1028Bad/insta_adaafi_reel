@@ -116,7 +116,7 @@ class InstagramUploader:
                 EC.presence_of_element_located((By.XPATH, '//div[text()="リール動画がシェアされました"]'))
             )
 
-            wait = WebDriverWait(self.driver, 60)
+            wait = WebDriverWait(self.driver, 300)
 
             return True
         except Exception as e:
@@ -207,10 +207,11 @@ def schedule_post():
             # 今日まだ投稿していない場合のみ処理を続行
             if last_post_date != now.strftime('%Y-%m-%d'):
                 if start_time <= now.time() <= end_time:
-                    video_path = get_random_video()
-                    if video_path:
-                        accounts = get_accounts()
-                        for account in schedule_info['accounts']:
+                    accounts = get_accounts()
+                    for account in schedule_info['accounts']:
+                        # アカウントごとにランダムな動画を選択
+                        video_path = get_random_video()
+                        if video_path:
                             uploader = InstagramUploader()
                             success = uploader.upload_to_instagram(video_path, schedule_info['caption'], account, accounts[account]['password'])
                             if success:
@@ -218,6 +219,8 @@ def schedule_post():
                                 print(f"投稿成功: {now} - アカウント: {account}")
                             else:
                                 print(f"投稿失敗: {now} - アカウント: {account}")
+                        else:
+                            print(f"投稿失敗: {now} - アカウント: {account} - 動画が見つかりません")
     except Exception as e:
         error_message = f"スケジュール投稿でエラーが発生しました: {str(e)}\n{traceback.format_exc()}"
         print(error_message)
@@ -254,10 +257,6 @@ def upload():
     accounts = request.form.getlist('account')
     caption = request.form['caption']
     
-    video_path = get_random_video()
-    if not video_path:
-        return jsonify({'error': '指定されたディレクトリに動画ファイルが見つかりません'}), 400
-    
     all_accounts = get_accounts()
     success_count = 0
     error_messages = []
@@ -265,6 +264,12 @@ def upload():
     for account in accounts:
         if account not in all_accounts:
             error_messages.append(f'アカウント {account} が見つかりません')
+            continue
+
+        # アカウントごとにランダムな動画を選択
+        video_path = get_random_video()
+        if not video_path:
+            error_messages.append(f'アカウント {account} の投稿に失敗しました: 動画ファイルが見つかりません')
             continue
 
         try:
