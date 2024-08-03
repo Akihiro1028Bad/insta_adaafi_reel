@@ -1,6 +1,6 @@
 Flask
 selenium
-requests==2.31.0
-configparser==5.3.0
-schedule==1.1.0
+requests
+configparser
+schedule
 webdriver_manager
