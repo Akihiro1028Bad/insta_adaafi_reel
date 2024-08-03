@@ -9,14 +9,17 @@
 <body>
     <h1>Instagram動画アップローダー</h1>
     
+    <!-- アカウント管理画面へのリンク -->
+    <a href="{{ url_for('account_management') }}" class="button">アカウント管理</a>
+    
     <!-- 動画アップロードフォーム -->
     <form id="uploadForm">
         <h2>動画アップロード</h2>
         <label>アカウント選択:</label>
         <div id="accountCheckboxes">
-            {% for account in accounts %}
+            {% for account, info in accounts.items() %}
                 <label class="account-checkbox">
-                    <input type="checkbox" name="account" value="{{ account }}"> {{ account }}
+                    <input type="checkbox" name="account" value="{{ account }}" {% if info.postFlag %}checked{% endif %}> {{ account }}
                 </label>
             {% endfor %}
         </div>
@@ -32,9 +35,9 @@
         <h2>自動投稿スケジュール設定</h2>
         <label>アカウント選択:</label>
         <div id="scheduleAccountCheckboxes">
-            {% for account in accounts %}
+            {% for account, info in accounts.items() %}
                 <label class="account-checkbox">
-                    <input type="checkbox" name="account" value="{{ account }}"> {{ account }}
+                    <input type="checkbox" name="account" value="{{ account }}" {% if info.postFlag %}checked{% endif %}> {{ account }}
                 </label>
             {% endfor %}
         </div>
@@ -52,18 +55,6 @@
         <div id="timeSlots"></div>
         
         <button type="submit">スケジュールを設定</button>
-    </form>
-
-    <!-- 新規アカウント追加フォーム -->
-    <form id="addAccountForm">
-        <h2>新規アカウント追加</h2>
-        <label for="newUsername">ユーザー名:</label>
-        <input type="text" id="newUsername" name="username" required>
-        
-        <label for="newPassword">パスワード:</label>
-        <input type="password" id="newPassword" name="password" required>
-        
-        <button type="submit">アカウントを追加</button>
     </form>
 
     <!-- 結果表示エリア -->

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アカウント管理 - Instagram動画アップローダー</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>アカウント管理</h1>
+    
+    <!-- アカウント一覧 -->
+    <div id="accountList">
+        <!-- アカウントがJavaScriptで動的に追加されます -->
+    </div>
+
+    <!-- 新規アカウント追加フォーム -->
+    <form id="addAccountForm">
+        <h2>新規アカウント追加</h2>
+        <label for="newUsername">ユーザー名:</label>
+        <input type="text" id="newUsername" name="username" required>
+        
+        <label for="newPassword">パスワード:</label>
+        <input type="password" id="newPassword" name="password" required>
+        
+        <label for="newPostFlag">投稿を有効にする:</label>
+        <input type="checkbox" id="newPostFlag" name="postFlag" checked>
+        
+        <button type="submit">アカウントを追加</button>
+    </form>
+
+    <!-- メイン画面へ戻るボタン -->
+    <a href="/" class="button">メイン画面へ戻る</a>
+
+    <!-- 結果表示エリア -->
+    <div id="result"></div>
+
+    <script src="{{ url_for('static', filename='js/account_management.js') }}"></script>
+</body>
+</html>

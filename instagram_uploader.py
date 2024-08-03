@@ -73,8 +73,6 @@ class InstagramUploader:
             div_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, vertical_crop_selector)))
             div_element.click()
 
-            
-
             for _ in range(2):
                 time.sleep(10)
 

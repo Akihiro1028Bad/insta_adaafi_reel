@@ -27,16 +27,18 @@ input[type="text"], input[type="password"], input[type="time"], select, textarea
     margin-top: 5px;
 }
 
-button {
+button, .button {
     margin-top: 10px;
     padding: 10px;
     background-color: #4CAF50;
     color: white;
     border: none;
     cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
 }
 
-button:hover {
+button:hover, .button:hover {
     background-color: #45a049;
 }
 
@@ -57,4 +59,19 @@ button:hover {
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 5px;
+}
+
+.account-item {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.account-item span {
+    margin-right: 10px;
+}
+
+.account-item button {
+    margin-left: 10px;
 }

@@ -8,8 +8,9 @@ from logger import setup_logger
 logger = setup_logger('scheduler', 'logs/scheduler.log')
 
 class Scheduler:
-    def __init__(self, config_manager):
+    def __init__(self, config_manager, video_folder):
         self.config_manager = config_manager
+        self.video_folder = video_folder
         self.running = False
         self.thread = None
 
@@ -62,17 +63,20 @@ class Scheduler:
 
     def make_post(self, accounts, caption):
         for account in accounts:
-            video_path = self.config_manager.get_random_video()
-            if video_path:
-                try:
-                    uploader = InstagramUploader()
-                    account_info = self.config_manager.get_account(account)
-                    success = uploader.upload_to_instagram(video_path, caption, account, account_info['password'])
-                    if success:
-                        logger.info(f"Scheduled post successful for account: {account}")
-                    else:
-                        logger.error(f"Scheduled post failed for account: {account}")
-                except Exception as e:
-                    logger.exception(f"Error during scheduled post for account {account}: {str(e)}")
+            account_info = self.config_manager.get_account(account)
+            if account_info and account_info['postFlag']:
+                video_path = self.config_manager.get_random_video(self.video_folder)
+                if video_path:
+                    try:
+                        uploader = InstagramUploader()
+                        success = uploader.upload_to_instagram(video_path, caption, account, account_info['password'])
+                        if success:
+                            logger.info(f"Scheduled post successful for account: {account}")
+                        else:
+                            logger.error(f"Scheduled post failed for account: {account}")
+                    except Exception as e:
+                        logger.exception(f"Error during scheduled post for account {account}: {str(e)}")
+                else:
+                    logger.error(f"No video found for scheduled post for account: {account}")
             else:
-                logger.error(f"No video found for scheduled post for account: {account}")
+                logger.info(f"Skipping scheduled post for account {account} due to post flag being False")

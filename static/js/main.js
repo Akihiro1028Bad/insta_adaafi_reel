@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const uploadForm = document.getElementById('uploadForm');
     const scheduleForm = document.getElementById('scheduleForm');
-    const addAccountForm = document.getElementById('addAccountForm');
     const postCountSelect = document.getElementById('postCount');
     const timeSlotsDiv = document.getElementById('timeSlots');
     const resultDiv = document.getElementById('result');
@@ -20,11 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
             posts: getTimeSlots()
         };
         submitJson('/set_schedule', scheduleData);
-    });
-
-    addAccountForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        submitForm('/add_account', new FormData(addAccountForm));
     });
 
     postCountSelect.addEventListener('change', updateTimeSlots);
@@ -64,9 +58,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             resultDiv.textContent = data.message || data.error;
-            if (url === '/add_account') {
-                location.reload();
-            }
         })
         .catch(error => {
             console.error('Error:', error);

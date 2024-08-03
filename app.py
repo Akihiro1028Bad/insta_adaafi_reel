@@ -16,7 +16,7 @@ ACCOUNTS_FILE = 'accounts.ini'
 SCHEDULE_FILE = 'schedule.ini'
 
 config_manager = ConfigManager(ACCOUNTS_FILE, SCHEDULE_FILE)
-scheduler = Scheduler(config_manager)
+scheduler = Scheduler(config_manager, VIDEO_FOLDER)
 
 @app.route('/')
 def index():
@@ -24,6 +24,40 @@ def index():
     accounts = config_manager.get_accounts()
     schedule_info = config_manager.load_schedule()
     return render_template('index.html', accounts=accounts, schedule=schedule_info)
+
+@app.route('/account_management')
+def account_management():
+    logger.info("Rendering account management page")
+    return render_template('account_management.html')
+
+@app.route('/api/accounts', methods=['GET'])
+def get_accounts():
+    logger.info("Fetching all accounts")
+    accounts = config_manager.get_accounts()
+    return jsonify([{'username': username, 'postFlag': account['postFlag']} for username, account in accounts.items()])
+
+@app.route('/api/accounts', methods=['POST'])
+def add_account():
+    logger.info("Adding new account")
+    data = request.json
+    username = data['username']
+    password = data['password']
+    post_flag = data['postFlag']
+    config_manager.save_account(username, password, post_flag)
+    return jsonify({'message': 'アカウントが追加されました'})
+
+@app.route('/api/accounts/<username>', methods=['PUT'])
+def update_account(username):
+    logger.info(f"Updating account: {username}")
+    data = request.json
+    config_manager.update_account(username, data)
+    return jsonify({'message': 'アカウント情報が更新されました'})
+
+@app.route('/api/accounts/<username>', methods=['DELETE'])
+def delete_account(username):
+    logger.info(f"Deleting account: {username}")
+    config_manager.delete_account(username)
+    return jsonify({'message': 'アカウントが削除されました'})
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -40,6 +74,10 @@ def upload():
             error_message = f'アカウント {account} が見つかりません'
             logger.error(error_message)
             error_messages.append(error_message)
+            continue
+
+        if not all_accounts[account]['postFlag']:
+            logger.info(f"Skipping upload for account {account} due to post flag being False")
             continue
 
         video_path = config_manager.get_random_video(VIDEO_FOLDER)
@@ -84,14 +122,6 @@ def set_schedule():
     config_manager.save_schedule(schedule_data)
     scheduler.update_schedule()
     return jsonify({'message': 'スケジュールが設定されました'}), 200
-
-@app.route('/add_account', methods=['POST'])
-def add_account():
-    logger.info("Received add_account request")
-    username = request.form['username']
-    password = request.form['password']
-    config_manager.save_account(username, password)
-    return jsonify({'message': 'アカウントが追加されました'}), 200
 
 if __name__ == '__main__':
     scheduler.start()
