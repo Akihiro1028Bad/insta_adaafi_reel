@@ -12,6 +12,27 @@
     <!-- アカウント管理画面へのリンク -->
     <a href="{{ url_for('account_management') }}" class="button">アカウント管理</a>
     
+    <!-- スケジュール情報表示部分 -->
+    <div id="scheduleInfo">
+        <h2>現在のスケジュール設定</h2>
+        <p>投稿間隔: {{ schedule.interval if schedule else '未設定' }} 分</p>
+        <p>対象アカウント: {{ ', '.join(schedule.accounts) if schedule else '未設定' }}</p>
+    </div>
+
+    <!-- 自動投稿状態表示部分 -->
+    <div id="autoPostStatus">
+        <h2>自動投稿状態</h2>
+        <p>現在の状態: <span id="currentStatus">{{ 'アクティブ' if auto_post_status == 'running' else '停止中' }}</span></p>
+        <button id="startAutoPost">自動投稿開始</button>
+        <button id="stopAutoPost">自動投稿停止</button>
+    </div>
+
+    <!-- 次回投稿時間表示部分 -->
+    <div id="nextPostTime">
+        <h2>次回投稿時間</h2>
+        <p>次回予定: <span id="nextPostTimeValue">{{ next_post_time if next_post_time else '未設定' }}</span></p>
+    </div>
+
     <!-- 動画アップロードフォーム -->
     <form id="uploadForm">
         <h2>動画アップロード</h2>
@@ -45,14 +66,8 @@
         <label for="scheduleCaption">キャプション:</label>
         <textarea id="scheduleCaption" name="caption" rows="4" required></textarea>
         
-        <label for="postCount">1日の投稿回数:</label>
-        <select id="postCount" name="postCount">
-            {% for i in range(1, 11) %}
-                <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-        </select>
-        
-        <div id="timeSlots"></div>
+        <label for="postInterval">投稿間隔（分）:</label>
+        <input type="number" id="postInterval" name="postInterval" min="1" max="600" required>
         
         <button type="submit">スケジュールを設定</button>
     </form>

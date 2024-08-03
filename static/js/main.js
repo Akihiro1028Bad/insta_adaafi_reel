@@ -1,55 +1,41 @@
 document.addEventListener('DOMContentLoaded', function() {
     const uploadForm = document.getElementById('uploadForm');
     const scheduleForm = document.getElementById('scheduleForm');
-    const postCountSelect = document.getElementById('postCount');
-    const timeSlotsDiv = document.getElementById('timeSlots');
     const resultDiv = document.getElementById('result');
+    const startAutoPostButton = document.getElementById('startAutoPost');
+    const stopAutoPostButton = document.getElementById('stopAutoPost');
+    const currentStatusSpan = document.getElementById('currentStatus');
+    const nextPostTimeSpan = document.getElementById('nextPostTimeValue');
 
+    // 動画アップロードフォームの送信処理
     uploadForm.addEventListener('submit', function(e) {
         e.preventDefault();
         submitForm('/upload', new FormData(uploadForm));
     });
 
+    // スケジュール設定フォームの送信処理
     scheduleForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(scheduleForm);
         const scheduleData = {
+            interval: parseInt(formData.get('postInterval'), 10),
             accounts: Array.from(formData.getAll('account')),
-            caption: formData.get('caption'),
-            posts: getTimeSlots()
+            caption: formData.get('caption')
         };
         submitJson('/set_schedule', scheduleData);
     });
 
-    postCountSelect.addEventListener('change', updateTimeSlots);
+    // 自動投稿開始ボタンのクリックイベント
+    startAutoPostButton.addEventListener('click', function() {
+        submitJson('/api/auto_post_status', { status: 'start' });
+    });
 
-    function updateTimeSlots() {
-        const count = parseInt(postCountSelect.value);
-        timeSlotsDiv.innerHTML = '';
-        for (let i = 0; i < count; i++) {
-            timeSlotsDiv.innerHTML += `
-                <div class="time-slot">
-                    <label for="startTime${i}">開始時刻 ${i+1}:</label>
-                    <input type="time" id="startTime${i}" name="startTime${i}" required>
-                    <label for="endTime${i}">終了時刻 ${i+1}:</label>
-                    <input type="time" id="endTime${i}" name="endTime${i}" required>
-                </div>
-            `;
-        }
-    }
+    // 自動投稿停止ボタンのクリックイベント
+    stopAutoPostButton.addEventListener('click', function() {
+        submitJson('/api/auto_post_status', { status: 'stop' });
+    });
 
-    function getTimeSlots() {
-        const slots = [];
-        const timeSlots = document.querySelectorAll('.time-slot');
-        timeSlots.forEach((slot, index) => {
-            slots.push({
-                start_time: slot.querySelector(`#startTime${index}`).value,
-                end_time: slot.querySelector(`#endTime${index}`).value
-            });
-        });
-        return slots;
-    }
-
+    // フォームデータを送信する関数
     function submitForm(url, formData) {
         fetch(url, {
             method: 'POST',
@@ -58,13 +44,16 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             resultDiv.textContent = data.message || data.error;
+            updateAutoPostStatus();
+            updateNextPostTime();
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('エラー:', error);
             resultDiv.textContent = 'エラーが発生しました。もう一度お試しください。';
         });
     }
 
+    // JSONデータを送信する関数
     function submitJson(url, data) {
         fetch(url, {
             method: 'POST',
@@ -76,13 +65,46 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             resultDiv.textContent = data.message || data.error;
+            updateAutoPostStatus();
+            updateNextPostTime();
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('エラー:', error);
             resultDiv.textContent = 'エラーが発生しました。もう一度お試しください。';
         });
     }
 
-    // 初期化時に時間枠を表示
-    updateTimeSlots();
+    // 自動投稿の状態を更新する関数
+    function updateAutoPostStatus() {
+        fetch('/api/auto_post_status')
+        .then(response => response.json())
+        .then(data => {
+            currentStatusSpan.textContent = data.status === 'running' ? 'アクティブ' : '停止中';
+        })
+        .catch(error => {
+            console.error('自動投稿状態の取得に失敗しました:', error);
+        });
+    }
+
+    // 次回投稿時間を更新する関数
+    function updateNextPostTime() {
+        fetch('/api/next_post_time')
+        .then(response => response.json())
+        .then(data => {
+            nextPostTimeSpan.textContent = data.next_post_time || '未設定';
+        })
+        .catch(error => {
+            console.error('次回投稿時間の取得に失敗しました:', error);
+        });
+    }
+
+    // 定期的に自動投稿の状態と次回投稿時間を更新
+    setInterval(() => {
+        updateAutoPostStatus();
+        updateNextPostTime();
+    }, 60000); // 1分ごとに更新
+
+    // 初期状態を取得
+    updateAutoPostStatus();
+    updateNextPostTime();
 });

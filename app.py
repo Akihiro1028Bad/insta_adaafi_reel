@@ -5,6 +5,7 @@ from scheduler import Scheduler
 from config_manager import ConfigManager
 from logger import setup_logger
 
+# アプリケーションの初期化
 app = Flask(__name__)
 
 # ロガーのセットアップ
@@ -15,53 +16,80 @@ VIDEO_FOLDER = os.path.abspath('upload_videos')
 ACCOUNTS_FILE = 'accounts.ini'
 SCHEDULE_FILE = 'schedule.ini'
 
+# ConfigManagerとSchedulerのインスタンス化
 config_manager = ConfigManager(ACCOUNTS_FILE, SCHEDULE_FILE)
 scheduler = Scheduler(config_manager, VIDEO_FOLDER)
 
 @app.route('/')
 def index():
-    logger.info("Rendering index page")
+    logger.info("メインページの表示リクエストを受信")
     accounts = config_manager.get_accounts()
     schedule_info = config_manager.load_schedule()
-    return render_template('index.html', accounts=accounts, schedule=schedule_info)
+    auto_post_status = scheduler.get_status()
+    next_post_time = scheduler.get_next_post_time()
+    
+    logger.debug(f"アカウント数: {len(accounts)}, 自動投稿状態: {auto_post_status}, 次回投稿時間: {next_post_time}")
+    
+    return render_template('index.html', 
+                           accounts=accounts, 
+                           schedule=schedule_info, 
+                           auto_post_status=auto_post_status, 
+                           next_post_time=next_post_time)
 
 @app.route('/account_management')
 def account_management():
-    logger.info("Rendering account management page")
+    logger.info("アカウント管理ページの表示リクエストを受信")
     return render_template('account_management.html')
 
 @app.route('/api/accounts', methods=['GET'])
 def get_accounts():
-    logger.info("Fetching all accounts")
+    logger.info("全アカウント情報の取得リクエストを受信")
     accounts = config_manager.get_accounts()
+    logger.debug(f"取得したアカウント数: {len(accounts)}")
     return jsonify([{'username': username, 'postFlag': account['postFlag']} for username, account in accounts.items()])
 
 @app.route('/api/accounts', methods=['POST'])
 def add_account():
-    logger.info("Adding new account")
+    logger.info("新規アカウント追加リクエストを受信")
     data = request.json
     username = data['username']
     password = data['password']
     post_flag = data['postFlag']
-    config_manager.save_account(username, password, post_flag)
-    return jsonify({'message': 'アカウントが追加されました'})
+    
+    try:
+        config_manager.save_account(username, password, post_flag)
+        logger.info(f"アカウント {username} を正常に追加しました")
+        return jsonify({'message': 'アカウントが追加されました'}), 201
+    except Exception as e:
+        logger.error(f"アカウント {username} の追加中にエラーが発生しました: {str(e)}")
+        return jsonify({'error': 'アカウントの追加に失敗しました'}), 500
 
 @app.route('/api/accounts/<username>', methods=['PUT'])
 def update_account(username):
-    logger.info(f"Updating account: {username}")
+    logger.info(f"アカウント {username} の更新リクエストを受信")
     data = request.json
-    config_manager.update_account(username, data)
-    return jsonify({'message': 'アカウント情報が更新されました'})
+    try:
+        config_manager.update_account(username, data)
+        logger.info(f"アカウント {username} を正常に更新しました")
+        return jsonify({'message': 'アカウント情報が更新されました'}), 200
+    except Exception as e:
+        logger.error(f"アカウント {username} の更新中にエラーが発生しました: {str(e)}")
+        return jsonify({'error': 'アカウントの更新に失敗しました'}), 500
 
 @app.route('/api/accounts/<username>', methods=['DELETE'])
 def delete_account(username):
-    logger.info(f"Deleting account: {username}")
-    config_manager.delete_account(username)
-    return jsonify({'message': 'アカウントが削除されました'})
+    logger.info(f"アカウント {username} の削除リクエストを受信")
+    try:
+        config_manager.delete_account(username)
+        logger.info(f"アカウント {username} を正常に削除しました")
+        return jsonify({'message': 'アカウントが削除されました'}), 200
+    except Exception as e:
+        logger.error(f"アカウント {username} の削除中にエラーが発生しました: {str(e)}")
+        return jsonify({'error': 'アカウントの削除に失敗しました'}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    logger.info("Received upload request")
+    logger.info("動画アップロードリクエストを受信")
     accounts = request.form.getlist('account')
     caption = request.form['caption']
     
@@ -77,7 +105,7 @@ def upload():
             continue
 
         if not all_accounts[account]['postFlag']:
-            logger.info(f"Skipping upload for account {account} due to post flag being False")
+            logger.info(f"アカウント {account} は投稿フラグがFalseのためスキップします")
             continue
 
         video_path = config_manager.get_random_video(VIDEO_FOLDER)
@@ -92,7 +120,7 @@ def upload():
             success = uploader.upload_to_instagram(video_path, caption, account, all_accounts[account]['password'])
             if success:
                 success_count += 1
-                logger.info(f"Successfully uploaded video for account: {account}")
+                logger.info(f"アカウント {account} への動画アップロードが成功しました")
             else:
                 error_message = f'アカウント {account} への投稿に失敗しました'
                 logger.error(error_message)
@@ -117,12 +145,61 @@ def upload():
 
 @app.route('/set_schedule', methods=['POST'])
 def set_schedule():
-    logger.info("Received set_schedule request")
+    logger.info("スケジュール設定リクエストを受信")
     schedule_data = request.json
-    config_manager.save_schedule(schedule_data)
-    scheduler.update_schedule()
-    return jsonify({'message': 'スケジュールが設定されました'}), 200
+    interval = schedule_data.get('interval')
+    
+    if not 1 <= interval <= 600:
+        error_message = '投稿間隔は1分から600分の間で設定してください。'
+        logger.error(error_message)
+        return jsonify({'error': error_message}), 400
+    
+    try:
+        config_manager.save_schedule(schedule_data)
+        scheduler.update_schedule()
+        logger.info("スケジュールが正常に設定されました")
+        return jsonify({'message': 'スケジュールが設定されました'}), 200
+    except Exception as e:
+        logger.error(f"スケジュール設定中にエラーが発生しました: {str(e)}")
+        return jsonify({'error': 'スケジュールの設定に失敗しました'}), 500
+
+@app.route('/api/auto_post_status', methods=['GET', 'POST'])
+def auto_post_status():
+    if request.method == 'GET':
+        logger.info("自動投稿状態の取得リクエストを受信")
+        status = scheduler.get_status()
+        logger.debug(f"現在の自動投稿状態: {status}")
+        return jsonify({'status': status}), 200
+    elif request.method == 'POST':
+        logger.info("自動投稿状態の変更リクエストを受信")
+        new_status = request.json.get('status')
+        if new_status not in ['start', 'stop']:
+            logger.error(f"無効な状態が指定されました: {new_status}")
+            return jsonify({'error': '無効な状態です。"start"または"stop"を指定してください。'}), 400
+        try:
+            if new_status == 'start':
+                scheduler.start()
+            else:
+                scheduler.stop()
+            logger.info(f"自動投稿状態を {new_status} に変更しました")
+            return jsonify({'message': f'自動投稿を{new_status}しました', 'status': new_status}), 200
+        except Exception as e:
+            logger.error(f"自動投稿状態の変更中にエラーが発生しました: {str(e)}")
+            return jsonify({'error': '自動投稿状態の変更に失敗しました'}), 500
+
+@app.route('/api/next_post_time', methods=['GET'])
+def next_post_time():
+    logger.info("次回投稿時間の取得リクエストを受信")
+    try:
+        next_time = scheduler.get_next_post_time()
+        logger.debug(f"次回の投稿時間: {next_time}")
+        return jsonify({'next_post_time': next_time}), 200
+    except Exception as e:
+        logger.error(f"次回投稿時間の取得中にエラーが発生しました: {str(e)}")
+        return jsonify({'error': '次回投稿時間の取得に失敗しました'}), 500
 
 if __name__ == '__main__':
+    logger.info("アプリケーションを起動します")
     scheduler.start()
     app.run(debug=True, port=5001)
+    logger.info("アプリケーションを終了します")
