@@ -15,7 +15,7 @@
     <!-- スケジュール情報表示部分 -->
     <div id="scheduleInfo">
         <h2>現在のスケジュール設定</h2>
-        <p>投稿間隔: {{ schedule.interval if schedule else '未設定' }} 分</p>
+        <p>投稿時刻: {{ schedule.post_time.strftime('%H:%M') if schedule else '未設定' }}</p>
         <p>対象アカウント: {{ ', '.join(schedule.accounts) if schedule else '未設定' }}</p>
     </div>
 
@@ -36,6 +36,7 @@
     <!-- 動画アップロードフォーム -->
     <form id="uploadForm">
         <h2>動画アップロード</h2>
+        <p class="info-text">各アカウントに3つの異なる動画がランダムに選択されアップロードされます。</p>
         <label>アカウント選択:</label>
         <div id="accountCheckboxes">
             {% for account, info in accounts.items() %}
@@ -54,6 +55,7 @@
     <!-- 自動投稿スケジュール設定フォーム -->
     <form id="scheduleForm">
         <h2>自動投稿スケジュール設定</h2>
+        <p class="info-text">設定した時刻に、各アカウントに3つの異なる動画が自動的にアップロードされます。</p>
         <label>アカウント選択:</label>
         <div id="scheduleAccountCheckboxes">
             {% for account, info in accounts.items() %}
@@ -66,8 +68,8 @@
         <label for="scheduleCaption">キャプション:</label>
         <textarea id="scheduleCaption" name="caption" rows="4" required></textarea>
         
-        <label for="postInterval">投稿間隔（分）:</label>
-        <input type="number" id="postInterval" name="postInterval" min="1" max="600" required>
+        <label for="postTime">投稿時刻:</label>
+        <input type="time" id="postTime" name="postTime" required>
         
         <button type="submit">スケジュールを設定</button>
     </form>

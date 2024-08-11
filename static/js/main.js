@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         const formData = new FormData(scheduleForm);
         const scheduleData = {
-            interval: parseInt(formData.get('postInterval'), 10),
+            post_time: formData.get('postTime'),
             accounts: Array.from(formData.getAll('account')),
             caption: formData.get('caption')
         };

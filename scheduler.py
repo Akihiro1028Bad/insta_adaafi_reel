@@ -7,16 +7,14 @@ from logger import setup_logger
 logger = setup_logger('scheduler', 'logs/scheduler.log')
 
 class Scheduler:
-    MIN_CHECK_INTERVAL = 30  # 最小チェック間隔（秒）
-    MAX_CHECK_INTERVAL = 90  # 最大チェック間隔（秒）
-
     def __init__(self, config_manager, video_folder):
         self.config_manager = config_manager
         self.video_folder = video_folder
         self.running = False
         self.thread = None
         self.next_post_time = None
-        logger.info("Schedulerが初期化されました")
+        logger.info("スケジューラーが初期化されました")
+
 
     def get_status(self):
         status = "running" if self.running else "stopped"
@@ -65,14 +63,16 @@ class Scheduler:
         if not schedule:
             logger.warning("スケジュールが見つかりません")
             return None
-        interval_minutes = schedule['interval']
+        post_time = schedule['post_time']
         now = datetime.now()
-        next_time = now + timedelta(minutes=interval_minutes)
+        next_time = now.replace(hour=post_time.hour, minute=post_time.minute, second=0, microsecond=0)
+        if next_time <= now:
+            next_time += timedelta(days=1)
         logger.info(f"次回の投稿時間を計算しました: {next_time}")
         return next_time
 
     def post_content(self):
-        logger.info("コンテンツの投稿を開始")
+        logger.info("スケジュールされたコンテンツの投稿を開始")
         schedule = self.config_manager.load_schedule()
         if not schedule:
             logger.error("スケジュールが見つかりません")
@@ -80,9 +80,9 @@ class Scheduler:
 
         for account in schedule['accounts']:
             logger.info(f"アカウント {account} の投稿処理を開始")
-            video_path = self.config_manager.get_random_video(self.video_folder)
-            if not video_path:
-                logger.error(f"アカウント {account} の投稿に失敗しました: 動画ファイルが見つかりません")
+            video_paths = self.config_manager.get_random_videos(self.video_folder, 3)
+            if len(video_paths) < 3:
+                logger.error(f"アカウント {account} の投稿に失敗しました: 十分な数の動画ファイルが見つかりません")
                 continue
 
             try:
@@ -91,10 +91,9 @@ class Scheduler:
                 if not account_info:
                     logger.error(f"アカウント {account} の情報が見つかりません")
                     continue
-                success = uploader.upload_to_instagram(video_path, schedule['caption'], account, account_info['password'])
+                success = uploader.upload_to_instagram(video_paths, schedule['caption'], account, account_info['password'])
                 if success:
-                    logger.info(f"アカウント {account} への投稿が成功しました")
-                    time.sleep(600)
+                    logger.info(f"アカウント {account} への3つの動画投稿が成功しました")
                 else:
                     logger.error(f"アカウント {account} への投稿に失敗しました")
             except Exception as e:
