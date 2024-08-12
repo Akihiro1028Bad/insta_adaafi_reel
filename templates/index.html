@@ -15,8 +15,14 @@
     <!-- スケジュール情報表示部分 -->
     <div id="scheduleInfo">
         <h2>現在のスケジュール設定</h2>
-        <p>投稿時刻: {{ schedule.post_time.strftime('%H:%M') if schedule else '未設定' }}</p>
-        <p>対象アカウント: {{ ', '.join(schedule.accounts) if schedule else '未設定' }}</p>
+        {% if schedule %}
+            {% for time in schedule.post_times %}
+                <p>投稿時刻 {{ loop.index }}: {{ time.strftime('%H:%M') }}</p>
+            {% endfor %}
+            <p>対象アカウント: {{ ', '.join(schedule.accounts) }}</p>
+        {% else %}
+            <p>スケジュールが設定されていません</p>
+        {% endif %}
     </div>
 
     <!-- 自動投稿状態表示部分 -->
@@ -30,7 +36,7 @@
     <!-- 次回投稿時間表示部分 -->
     <div id="nextPostTime">
         <h2>次回投稿時間</h2>
-        <p>次回予定: <span id="nextPostTimeValue">{{ next_post_time if next_post_time else '未設定' }}</span></p>
+        <p>次回予定: <span id="nextPostTimeValue">{{ next_post_times if next_post_times else '未設定' }}</span></p>
     </div>
 
     <!-- 動画アップロードフォーム -->
@@ -55,7 +61,7 @@
     <!-- 自動投稿スケジュール設定フォーム -->
     <form id="scheduleForm">
         <h2>自動投稿スケジュール設定</h2>
-        <p class="info-text">設定した時刻に、各アカウントに3つの異なる動画が自動的にアップロードされます。</p>
+        <p class="info-text">1日最大3回の投稿時刻を設定できます。設定した時刻の1分～60分後に、各アカウントに3つの異なる動画が自動的にアップロードされます。</p>
         <label>アカウント選択:</label>
         <div id="scheduleAccountCheckboxes">
             {% for account, info in accounts.items() %}
@@ -68,8 +74,16 @@
         <label for="scheduleCaption">キャプション:</label>
         <textarea id="scheduleCaption" name="caption" rows="4" required></textarea>
         
-        <label for="postTime">投稿時刻:</label>
-        <input type="time" id="postTime" name="postTime" required>
+        <div id="postTimesContainer">
+            <label for="postTime1">投稿時刻 1:</label>
+            <input type="time" id="postTime1" name="postTime" required>
+            
+            <label for="postTime2">投稿時刻 2 (オプション):</label>
+            <input type="time" id="postTime2" name="postTime">
+            
+            <label for="postTime3">投稿時刻 3 (オプション):</label>
+            <input type="time" id="postTime3" name="postTime">
+        </div>
         
         <button type="submit">スケジュールを設定</button>
     </form>

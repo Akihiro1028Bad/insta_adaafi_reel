@@ -18,10 +18,21 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         const formData = new FormData(scheduleForm);
         const scheduleData = {
-            post_time: formData.get('postTime'),
+            post_times: [],
             accounts: Array.from(formData.getAll('account')),
             caption: formData.get('caption')
         };
+
+        // 投稿時刻の処理
+        for (let i = 1; i <= 3; i++) {
+            const timeInput = document.getElementById(`postTime${i}`);
+            if (timeInput && timeInput.value) {
+                scheduleData.post_times.push(timeInput.value);
+            }
+        }
+
+        console.log('送信するスケジュールデータ:', scheduleData); // デバッグ用ログ
+
         submitJson('/set_schedule', scheduleData);
     });
 
@@ -55,6 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // JSONデータを送信する関数
     function submitJson(url, data) {
+        console.log('送信するデータ:', data); // デバッグ用ログ
         fetch(url, {
             method: 'POST',
             headers: {
@@ -64,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
+            console.log('サーバーからの応答:', data); // デバッグ用ログ
             resultDiv.textContent = data.message || data.error;
             updateAutoPostStatus();
             updateNextPostTime();
@@ -91,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/next_post_time')
         .then(response => response.json())
         .then(data => {
-            nextPostTimeSpan.textContent = data.next_post_time || '未設定';
+            nextPostTimeSpan.textContent = data.next_post_times || '未設定';
         })
         .catch(error => {
             console.error('次回投稿時間の取得に失敗しました:', error);

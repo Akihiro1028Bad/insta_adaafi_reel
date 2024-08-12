@@ -12,7 +12,7 @@ class Scheduler:
         self.video_folder = video_folder
         self.running = False
         self.thread = None
-        self.next_post_time = None
+        self.next_post_times = []
         logger.info("スケジューラーが初期化されました")
 
 
@@ -21,10 +21,11 @@ class Scheduler:
         logger.info(f"現在のスケジューラーステータス: {status}")
         return status
 
-    def get_next_post_time(self):
-        if self.next_post_time:
-            logger.info(f"次回の投稿時間: {self.next_post_time}")
-            return self.next_post_time.strftime("%Y-%m-%d %H:%M:%S")
+    def get_next_post_times(self):
+        if self.next_post_times:
+            times_str = ", ".join(t.strftime("%Y-%m-%d %H:%M:%S") for t in self.next_post_times)
+            logger.info(f"次回の投稿時間: {times_str}")
+            return times_str
         logger.info("次回の投稿時間が設定されていません")
         return None
 
@@ -44,33 +45,43 @@ class Scheduler:
 
     def update_schedule(self):
         logger.info("スケジュールの更新を開始")
-        self.next_post_time = self.calculate_next_post_time()
-        logger.info(f"次回の投稿時間を更新しました: {self.next_post_time}")
+        self.next_post_times = self.calculate_next_post_times()
+        logger.info(f"次回の投稿時間を更新しました: {self.next_post_times}")
 
     def run(self):
         logger.info("スケジューラーのメインループを開始")
         while self.running:
             now = datetime.now()
-            if self.next_post_time and now >= self.next_post_time:
-                self.post_content()
-                self.update_schedule()
+            for post_time in self.next_post_times:
+                if now >= post_time:
+                    wait_time = self.config_manager.get_random_wait_time()
+                    logger.info(f"投稿時刻 {post_time} に達しました。{wait_time}秒後に投稿を開始します。")
+                    time.sleep(wait_time)
+                    self.post_content()
+                    self.update_schedule()
+                    break
             time.sleep(60)  # 1分ごとにチェック
         logger.info("スケジューラーのメインループを終了")
 
-    def calculate_next_post_time(self):
+    def calculate_next_post_times(self):
         logger.info("次回の投稿時間を計算")
         schedule = self.config_manager.load_schedule()
         if not schedule:
             logger.warning("スケジュールが見つかりません")
-            return None
-        post_time = schedule['post_time']
+            return []
+        
         now = datetime.now()
-        next_time = now.replace(hour=post_time.hour, minute=post_time.minute, second=0, microsecond=0)
-        if next_time <= now:
-            next_time += timedelta(days=1)
-        logger.info(f"次回の投稿時間を計算しました: {next_time}")
-        return next_time
-
+        next_times = []
+        for post_time in schedule['post_times']:
+            next_time = now.replace(hour=post_time.hour, minute=post_time.minute, second=0, microsecond=0)
+            if next_time <= now:
+                next_time += timedelta(days=1)
+            next_times.append(next_time)
+        
+        next_times.sort()
+        logger.info(f"次回の投稿時間を計算しました: {next_times}")
+        return next_times
+    
     def post_content(self):
         logger.info("スケジュールされたコンテンツの投稿を開始")
         schedule = self.config_manager.load_schedule()

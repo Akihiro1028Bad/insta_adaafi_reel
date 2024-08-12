@@ -1,9 +1,9 @@
-import configparser
+import json
 import os
 import random
-from datetime import datetime
+from datetime import datetime, time
 from logger import setup_logger
-import json
+import configparser
 
 logger = setup_logger('config_manager', 'logs/config_manager.log')
 
@@ -56,15 +56,20 @@ class ConfigManager:
         return account
 
     def save_schedule(self, schedule_data):
+        """
+        新しいスケジュール設定を保存する。
+        
+        :param schedule_data: 辞書形式のスケジュールデータ
+        """
         logger.info("新しいスケジュールの保存を開始")
         try:
             with open(self.schedule_file, 'w', encoding='utf-8') as file:
                 json.dump({
-                    'post_time': schedule_data['post_time'].strftime('%H:%M'),
+                    'post_times': [time.strftime('%H:%M') for time in schedule_data['post_times']],
                     'accounts': schedule_data['accounts'],
                     'caption': schedule_data['caption']
                 }, file, ensure_ascii=False, indent=2)
-            logger.info(f"新しいスケジュールを保存しました: 投稿時刻 {schedule_data['post_time']}, アカウント数 {len(schedule_data['accounts'])}")
+            logger.info(f"新しいスケジュールを保存しました: 投稿時刻 {schedule_data['post_times']}, アカウント数 {len(schedule_data['accounts'])}")
         except Exception as e:
             logger.error(f"スケジュールの保存中にエラーが発生しました: {str(e)}")
             raise
@@ -106,12 +111,13 @@ class ConfigManager:
         logger.info(f"アカウントファイルを更新しました: {username}")
 
     def load_schedule(self):
+        """スケジュール設定を読み込む"""
         logger.info("スケジュールの読み込みを開始")
         try:
             with open(self.schedule_file, 'r', encoding='utf-8') as file:
                 data = json.load(file)
                 schedule = {
-                    'post_time': datetime.strptime(data['post_time'], '%H:%M').time(),
+                    'post_times': [datetime.strptime(t, '%H:%M').time() for t in data['post_times']],
                     'accounts': data['accounts'],
                     'caption': data['caption']
                 }
@@ -126,3 +132,9 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"スケジュールの読み込み中にエラーが発生しました: {str(e)}")
             return None
+        
+    def get_random_wait_time(self):
+        """1分から60分の間でランダムな待機時間（秒）を生成する"""
+        wait_time = random.randint(60, 3600)  # 60秒（1分）から3600秒（60分）の間
+        logger.info(f"ランダムな待機時間を生成しました: {wait_time}秒")
+        return wait_time

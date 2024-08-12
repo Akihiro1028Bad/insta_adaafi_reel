@@ -1,4 +1,3 @@
-import os
 from flask import Flask, render_template, request, jsonify
 from instagram_uploader import InstagramUploader
 from scheduler import Scheduler
@@ -6,18 +5,14 @@ from config_manager import ConfigManager
 from logger import setup_logger
 from datetime import datetime, timedelta
 
-# アプリケーションの初期化
 app = Flask(__name__)
 
-# ロガーのセットアップ
 logger = setup_logger('app', 'logs/app.log')
 
-# 定数の定義
-VIDEO_FOLDER = os.path.abspath('upload_videos')
+VIDEO_FOLDER = 'upload_videos'
 ACCOUNTS_FILE = 'accounts.ini'
-SCHEDULE_FILE = 'schedule.ini'
+SCHEDULE_FILE = 'schedule.json'
 
-# ConfigManagerとSchedulerのインスタンス化
 config_manager = ConfigManager(ACCOUNTS_FILE, SCHEDULE_FILE)
 scheduler = Scheduler(config_manager, VIDEO_FOLDER)
 
@@ -27,15 +22,15 @@ def index():
     accounts = config_manager.get_accounts()
     schedule_info = config_manager.load_schedule()
     auto_post_status = scheduler.get_status()
-    next_post_time = scheduler.get_next_post_time()
+    next_post_times = scheduler.get_next_post_times()
     
-    logger.debug(f"アカウント数: {len(accounts)}, 自動投稿状態: {auto_post_status}, 次回投稿時間: {next_post_time}")
+    logger.debug(f"アカウント数: {len(accounts)}, 自動投稿状態: {auto_post_status}, 次回投稿時間: {next_post_times}")
     
     return render_template('index.html', 
                            accounts=accounts, 
                            schedule=schedule_info, 
                            auto_post_status=auto_post_status, 
-                           next_post_time=next_post_time)
+                           next_post_times=next_post_times)
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -125,15 +120,26 @@ def api_account(username):
 @app.route('/set_schedule', methods=['POST'])
 def set_schedule():
     data = request.json
+    logger.info(f"受信したスケジュールデータ: {data}")  # 追加
     try:
-        # データの検証
-        if 'post_time' not in data or 'accounts' not in data or 'caption' not in data:
+        if 'post_times' not in data or 'accounts' not in data or 'caption' not in data:
             raise ValueError("必要なデータが不足しています")
         
-        # post_time を datetime オブジェクトに変換
-        data['post_time'] = datetime.strptime(data['post_time'], '%H:%M').time()
+        # 最大3つの投稿時間を受け付ける
+        post_times = data['post_times'][:3]
+        if not post_times:
+            raise ValueError("少なくとも1つの投稿時間を指定してください")
         
-        config_manager.save_schedule(data)
+        post_times = [datetime.strptime(t, '%H:%M').time() for t in post_times]
+        
+        schedule_data = {
+            'post_times': post_times,
+            'accounts': data['accounts'],
+            'caption': data['caption']
+        }
+        
+        logger.info(f"保存するスケジュールデータ: {schedule_data}")  # 追加
+        config_manager.save_schedule(schedule_data)
         scheduler.update_schedule()
         return jsonify({"message": "スケジュールが設定されました"}), 200
     except ValueError as ve:

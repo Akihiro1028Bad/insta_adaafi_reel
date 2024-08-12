@@ -75,3 +75,24 @@ button:hover, .button:hover {
 .account-item button {
     margin-left: 10px;
 }
+
+#postTimesContainer {
+    margin-top: 15px;
+}
+
+#postTimesContainer label {
+    display: block;
+    margin-top: 10px;
+}
+
+#postTimesContainer input[type="time"] {
+    width: 100%;
+    padding: 5px;
+    margin-top: 5px;
+}
+
+.info-text {
+    font-style: italic;
+    color: #666;
+    margin-bottom: 10px;
+}
