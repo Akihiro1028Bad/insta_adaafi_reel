@@ -4,3 +4,4 @@ requests
 configparser
 schedule
 webdriver_manager
+cryptography

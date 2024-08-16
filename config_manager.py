@@ -4,6 +4,8 @@ import random
 from datetime import datetime, time
 from logger import setup_logger
 import configparser
+from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 logger = setup_logger('config_manager', 'logs/config_manager.log')
 
@@ -12,6 +14,15 @@ class ConfigManager:
         self.accounts_file = accounts_file
         self.schedule_file = schedule_file
         logger.info(f"ConfigManagerが初期化されました: accounts_file={accounts_file}, schedule_file={schedule_file}")
+
+        # 暗号化キーの設定
+        key_file = 'config_encryption.key'
+        self.key = Fernet.generate_key()
+        with open(key_file, 'wb') as f:
+            f.write(self.key)
+        self.cipher_suite = Fernet(self.key)
+        logger.info("新しい設定ファイル暗号化キーが生成されました")
+
 
     def get_random_videos(self, video_folder, count=3):
         """指定されたフォルダからランダムに指定された数の異なる動画を選択する"""
@@ -38,8 +49,13 @@ class ConfigManager:
             if 'postflag' not in account:
                 account['postflag'] = 'true'
                 self._update_account_file(section, account)
+            try:
+                decrypted_password = self._decrypt(account['password'])
+            except InvalidToken:
+                # 暗号化されていない場合、そのまま使用
+                decrypted_password = account['password']
             accounts[section] = {
-                'password': account['password'],
+                'password': decrypted_password,
                 'postFlag': account['postflag'].lower() == 'true'
             }
         logger.info(f"{len(accounts)}個のアカウント情報を取得しました")
@@ -55,39 +71,22 @@ class ConfigManager:
             logger.warning(f"アカウントが見つかりません: {username}")
         return account
 
-    def save_schedule(self, schedule_data):
-        """
-        新しいスケジュール設定を保存する。
-        
-        :param schedule_data: 辞書形式のスケジュールデータ
-        """
-        logger.info("新しいスケジュールの保存を開始")
-        try:
-            with open(self.schedule_file, 'w', encoding='utf-8') as file:
-                json.dump({
-                    'post_times': [time.strftime('%H:%M') for time in schedule_data['post_times']],
-                    'accounts': schedule_data['accounts'],
-                    'caption': schedule_data['caption']
-                }, file, ensure_ascii=False, indent=2)
-            logger.info(f"新しいスケジュールを保存しました: 投稿時刻 {schedule_data['post_times']}, アカウント数 {len(schedule_data['accounts'])}")
-        except Exception as e:
-            logger.error(f"スケジュールの保存中にエラーが発生しました: {str(e)}")
-            raise
-
-    def update_account(self, username, data):
-        logger.info(f"アカウント {username} の更新を開始")
+    def save_account(self, username, password, post_flag):
+        """新しいアカウントを保存または既存のアカウントを更新"""
+        logger.info(f"アカウント {username} の保存を開始")
         config = configparser.ConfigParser()
         config.read(self.accounts_file)
-        if username in config:
-            if 'password' in data:
-                config[username]['password'] = data['password']
-            if 'postFlag' in data:
-                config[username]['postflag'] = str(data['postFlag']).lower()
-            with open(self.accounts_file, 'w') as configfile:
-                config.write(configfile)
-            logger.info(f"アカウント情報を更新しました: {username}")
-        else:
-            logger.warning(f"更新対象のアカウントが見つかりません: {username}")
+        
+        if username not in config:
+            config.add_section(username)
+        
+        config[username]['password'] = self._encrypt(password)
+        config[username]['postflag'] = str(post_flag).lower()
+        
+        with open(self.accounts_file, 'w') as configfile:
+            config.write(configfile)
+        
+        logger.info(f"アカウント {username} が正常に保存されました")
 
     def delete_account(self, username):
         logger.info(f"アカウント {username} の削除を開始")
@@ -110,22 +109,46 @@ class ConfigManager:
             config.write(configfile)
         logger.info(f"アカウントファイルを更新しました: {username}")
 
+    def save_schedule(self, schedule_data):
+        """
+        新しいスケジュール設定を保存する。
+        
+        :param schedule_data: 辞書形式のスケジュールデータ
+        """
+        logger.info("新しいスケジュールの保存を開始")
+        try:
+            encrypted_data = self._encrypt(json.dumps({
+                'post_times': [time.strftime('%H:%M') for time in schedule_data['post_times']],
+                'accounts': schedule_data['accounts'],
+                'caption': schedule_data['caption']
+            }))
+            with open(self.schedule_file, 'wb') as file:
+                file.write(encrypted_data)
+            logger.info(f"新しいスケジュールを保存しました: 投稿時刻 {schedule_data['post_times']}, アカウント数 {len(schedule_data['accounts'])}")
+        except Exception as e:
+            logger.error(f"スケジュールの保存中にエラーが発生しました: {str(e)}")
+            raise
+
     def load_schedule(self):
         """スケジュール設定を読み込む"""
         logger.info("スケジュールの読み込みを開始")
         try:
-            with open(self.schedule_file, 'r', encoding='utf-8') as file:
-                data = json.load(file)
-                schedule = {
-                    'post_times': [datetime.strptime(t, '%H:%M').time() for t in data['post_times']],
-                    'accounts': data['accounts'],
-                    'caption': data['caption']
-                }
+            if not os.path.exists(self.schedule_file):
+                logger.warning("スケジュールファイルが見つかりません")
+                return None
+
+            with open(self.schedule_file, 'rb') as file:
+                encrypted_data = file.read()
+
+            decrypted_data = self._decrypt(encrypted_data)
+            data = json.loads(decrypted_data)
+            schedule = {
+                'post_times': [datetime.strptime(t, '%H:%M').time() for t in data['post_times']],
+                'accounts': data['accounts'],
+                'caption': data['caption']
+            }
             logger.info(f"スケジュールを読み込みました: {schedule}")
             return schedule
-        except FileNotFoundError:
-            logger.warning("スケジュールファイルが見つかりません")
-            return None
         except json.JSONDecodeError:
             logger.error("スケジュールファイルの形式が不正です")
             return None
@@ -138,3 +161,14 @@ class ConfigManager:
         wait_time = random.randint(60, 3600)  # 60秒（1分）から3600秒（60分）の間
         logger.info(f"ランダムな待機時間を生成しました: {wait_time}秒")
         return wait_time
+
+    def _encrypt(self, data):
+        """データを暗号化する"""
+        return self.cipher_suite.encrypt(data.encode())
+
+    def _decrypt(self, encrypted_data):
+        """暗号化されたデータを復号化する"""
+        return self.cipher_suite.decrypt(encrypted_data).decode()
+
+# ConfigManagerのインスタンスを作成
+config_manager = ConfigManager('accounts.ini', 'schedule.json')

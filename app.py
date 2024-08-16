@@ -117,6 +117,13 @@ def api_account(username):
         config_manager.delete_account(username)
         return jsonify({"message": "アカウントが削除されました"})
     
+@app.route('/reencrypt_accounts', methods=['GET'])
+def reencrypt_accounts():
+    accounts = config_manager.get_accounts()
+    for username, account_info in accounts.items():
+        config_manager.save_account(username, account_info['password'], account_info['postFlag'])
+    return "アカウント情報が再暗号化されました", 200
+    
 @app.route('/set_schedule', methods=['POST'])
 def set_schedule():
     data = request.json
