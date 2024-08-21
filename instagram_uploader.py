@@ -40,8 +40,8 @@ class InstagramUploader:
                 self._login(login_user_name, login_password)
                 
                 # 新しいセッション情報を保存
-                new_session_data = self._get_current_session()
-                session_manager.save_session(login_user_name, new_session_data)
+                #new_session_data = self._get_current_session()
+                #session_manager.save_session(login_user_name, new_session_data)
 
             # 3つの動画をアップロード
             for i, video_path in enumerate(video_paths, 1):
